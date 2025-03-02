@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>활동 기록 - MyFace Tracker</title>
+    <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+    <nav>
+        <a href="index.html">홈</a> |
+        <a href="record.html">기록</a> |
+        <a href="report.html">리포트</a> |
+        <a href="community.html">커뮤니티</a>
+    </nav>
+    <h1>활동 기록</h1>
+    <form id="recordForm">
+        활동명: <input type="text" name="activity_name"><br>
+        감정: <input type="text" name="emotion"><br>
+        몰입도: <input type="range" name="flow_score" min="1" max="10"><br>
+        메모: <textarea name="memo"></textarea><br>
+        <button type="submit">기록 저장</button>
+    </form>
+    <script src="static/js/record.js"></script>
+</body>
+</html>
