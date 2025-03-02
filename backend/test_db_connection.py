@@ -1,5 +1,6 @@
+# DB 연결 테스트만 하는 파일
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
 
@@ -8,6 +9,10 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# SQLAlchemy 엔진 생성 (Transaction Pooler URL 사용)
 engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+try:
+    with engine.connect() as conn:
+        print("✅ DB 연결 성공")
+except Exception as e:
+    print(f"❌ DB 연결 실패: {e}")

@@ -1,39 +1,66 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from datetime import datetime
-import uuid
-from .database import get_db_connection, init_db
+from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from backend.database import SessionLocal, engine
+from backend.models import Base
+from backend import crud
+from backend.schemas import (
+    UserCreate, EmotionCreate, ActivityTypeCreate, ActivityCreate, FlowCurveCreate
+)
+
 
 app = FastAPI()
 
-# 앱 시작 시 DB 초기화
-@app.on_event("startup")
-def startup():
-    init_db()
+# CORS 설정 (필요에 따라 조절)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# 요청 데이터 구조 정의
-class RecordCreate(BaseModel):
-    user_id: str
-    activity_name: str
-    emotion: str
-    flow_score: int
-    memo: str
+# 테이블 생성
+Base.metadata.create_all(bind=engine)
 
-# 기록 저장 API
-@app.post("/records")
-async def create_record(record: RecordCreate):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    record_id = str(uuid.uuid4())
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    cursor.execute("""
-    INSERT INTO activities (record_id, user_id, activity_name, emotion, flow_score, timestamp, memo)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (record_id, record.user_id, record.activity_name, record.emotion, record.flow_score, timestamp, record.memo))
-    
-    conn.commit()
-    conn.close()
-    
-    return {"record_id": record_id, "message": "기록 저장 완료"}
+# DB 세션 의존성
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@app.get("/")
+def read_root():
+    return {"message": "MyFace Tracker with Supabase & SQLAlchemy"}
+
+# 사용자 추가
+@app.post("/users/")
+def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    return crud.create_user(db, user.name, user.email)
+
+# 모든 사용자 조회
+@app.get("/users/")
+def read_users(db: Session = Depends(get_db)):
+    return crud.get_users(db)
+
+# 감정 추가
+@app.post("/emotions/")
+def add_emotion(emotion: EmotionCreate, db: Session = Depends(get_db)):
+    return crud.create_emotion(db, emotion.user_id, emotion.emotion)
+
+# 활동 유형 추가
+@app.post("/activity-types/")
+def add_activity_type(activity_type: ActivityTypeCreate, db: Session = Depends(get_db)):
+    return crud.create_activity_type(db, activity_type.name)
+
+# 활동 기록 추가
+@app.post("/activities/")
+def add_activity(activity: ActivityCreate, db: Session = Depends(get_db)):
+    return crud.create_activity(db, activity.user_id, activity.activity_type_id, activity.description)
+
+# 플로우 커브 데이터 추가
+@app.post("/flow-curve/")
+def add_flow_curve(flow_curve: FlowCurveCreate, db: Session = Depends(get_db)):
+    return crud.create_flow_curve(db, flow_curve.user_id, flow_curve.time_spent, flow_curve.satisfaction)
