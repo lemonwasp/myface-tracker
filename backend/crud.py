@@ -4,11 +4,12 @@ from sqlalchemy.orm import Session
 from backend.models import User, Emotion, Activity, ActivityType, FlowCurve
 import uuid
 
-# 사용자 생성 (이메일 중복 체크 포함)
+# 사용자 생성
 def create_user(db: Session, name: str, email: str):
     existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
-        return existing_user  # 이미 있으면 그대로 반환
+        return {"error": "이미 존재하는 이메일입니다."}
+
     db_user = User(id=uuid.uuid4(), name=name, email=email)
     db.add(db_user)
     db.commit()
@@ -19,28 +20,36 @@ def create_user(db: Session, name: str, email: str):
 def get_users(db: Session):
     return db.query(User).all()
 
-# 감정 기록 추가
-def create_emotion(db: Session, user_id: uuid.UUID, emotion: str):
-    db_emotion = Emotion(user_id=user_id, emotion=emotion)
+# 감정 기록 추가 (선택 감정 or NLP 분석 결과 포함 감정)
+def create_emotion(db: Session, user_id: uuid.UUID, emotion: str, emotion_score: float = None, keywords: str = None):
+    db_emotion = Emotion(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        emotion=emotion,
+        emotion_score=emotion_score,
+        emotion_keywords=keywords,
+    )
     db.add(db_emotion)
     db.commit()
-    db.refresh(db_emotion)  # 여기 원래 오류 있었음
+    db.refresh(db_emotion)
     return db_emotion
 
-# 활동 유형 추가 (중복 체크 추가)
+# 활동 유형 추가
 def create_activity_type(db: Session, name: str):
-    existing_type = db.query(ActivityType).filter(ActivityType.name == name).first()
-    if existing_type:
-        return existing_type  # 이미 있으면 기존거 반환
-    db_activity_type = ActivityType(name=name)
+    db_activity_type = ActivityType(id=uuid.uuid4(), name=name)
     db.add(db_activity_type)
     db.commit()
     db.refresh(db_activity_type)
     return db_activity_type
 
 # 활동 기록 추가
-def create_activity(db: Session, user_id: uuid.UUID, activity_type_id: int, description: str):
-    db_activity = Activity(user_id=user_id, activity_type_id=activity_type_id, description=description)
+def create_activity(db: Session, user_id: uuid.UUID, activity_type_id: uuid.UUID, description: str):
+    db_activity = Activity(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        activity_type_id=activity_type_id,
+        description=description,
+    )
     db.add(db_activity)
     db.commit()
     db.refresh(db_activity)
@@ -48,7 +57,12 @@ def create_activity(db: Session, user_id: uuid.UUID, activity_type_id: int, desc
 
 # 플로우 커브 데이터 추가
 def create_flow_curve(db: Session, user_id: uuid.UUID, time_spent: float, satisfaction: float):
-    db_flow_curve = FlowCurve(user_id=user_id, time_spent=time_spent, satisfaction=satisfaction)
+    db_flow_curve = FlowCurve(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        time_spent=time_spent,
+        satisfaction=satisfaction,
+    )
     db.add(db_flow_curve)
     db.commit()
     db.refresh(db_flow_curve)

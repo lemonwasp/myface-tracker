@@ -1,3 +1,4 @@
+import uuid
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -7,11 +8,11 @@ from backend import crud
 from backend.schemas import (
     UserCreate, EmotionCreate, ActivityTypeCreate, ActivityCreate, FlowCurveCreate
 )
-
+from backend.utils.emotion_processing import process_emotion_text  # NLP 처리 함수 임포트
 
 app = FastAPI()
 
-# CORS 설정 (필요에 따라 조절)
+# CORS 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -45,10 +46,22 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 def read_users(db: Session = Depends(get_db)):
     return crud.get_users(db)
 
-# 감정 추가
+# 감정 추가 (선택 감정 or 자유 감정 처리 포함)
 @app.post("/emotions/")
-def add_emotion(emotion: EmotionCreate, db: Session = Depends(get_db)):
-    return crud.create_emotion(db, emotion.user_id, emotion.emotion)
+def add_emotion(emotion_data: EmotionCreate, db: Session = Depends(get_db)):
+    if emotion_data.free_text:
+        # 자유 감정 텍스트 입력 시 NLP 처리
+        processed = process_emotion_text(emotion_data.free_text)
+        emotion = processed['final_emotion']
+        score = processed['emotion_score']
+        keywords = ",".join(processed['keywords'])
+    else:
+        # 선택 감정만 입력된 경우
+        emotion = emotion_data.emotion
+        score = None
+        keywords = None
+
+    return crud.create_emotion(db, uuid.UUID(emotion_data.user_id), emotion, score, keywords)
 
 # 활동 유형 추가
 @app.post("/activity-types/")
@@ -58,9 +71,19 @@ def add_activity_type(activity_type: ActivityTypeCreate, db: Session = Depends(g
 # 활동 기록 추가
 @app.post("/activities/")
 def add_activity(activity: ActivityCreate, db: Session = Depends(get_db)):
-    return crud.create_activity(db, activity.user_id, activity.activity_type_id, activity.description)
+    return crud.create_activity(
+        db,
+        uuid.UUID(activity.user_id),
+        uuid.UUID(activity.activity_type_id),
+        activity.description
+    )
 
 # 플로우 커브 데이터 추가
 @app.post("/flow-curve/")
 def add_flow_curve(flow_curve: FlowCurveCreate, db: Session = Depends(get_db)):
-    return crud.create_flow_curve(db, flow_curve.user_id, flow_curve.time_spent, flow_curve.satisfaction)
+    return crud.create_flow_curve(
+        db,
+        uuid.UUID(flow_curve.user_id),
+        flow_curve.time_spent,
+        flow_curve.satisfaction
+    )
