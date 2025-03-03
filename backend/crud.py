@@ -3,6 +3,7 @@
 from sqlalchemy.orm import Session
 from backend.models import User, Emotion, Activity, ActivityType, FlowCurve
 import uuid
+from typing import Optional
 
 # 사용자 생성
 def create_user(db: Session, name: str, email: str):
@@ -21,7 +22,7 @@ def get_users(db: Session):
     return db.query(User).all()
 
 # 감정 기록 추가 (선택 감정 or NLP 분석 결과 포함 감정)
-def create_emotion(db: Session, user_id: uuid.UUID, emotion: str, emotion_score: float = None, keywords: str = None):
+def create_emotion(db: Session, user_id: uuid.UUID, emotion: str, emotion_score: Optional[float], keywords: Optional[str]):
     db_emotion = Emotion(
         id=uuid.uuid4(),
         user_id=user_id,

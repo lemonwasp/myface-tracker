@@ -1,5 +1,6 @@
 import uuid
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from backend.database import SessionLocal, engine
@@ -47,21 +48,48 @@ def read_users(db: Session = Depends(get_db)):
     return crud.get_users(db)
 
 # 감정 추가 (선택 감정 or 자유 감정 처리 포함)
+# @app.post("/emotions/")
+# def add_emotion(emotion_data: EmotionCreate, db: Session = Depends(get_db)):
+#     from backend.utils.emotion_processing import process_emotion_text
+#     import uuid
+
+#     if emotion_data.free_text:  # free_text 존재 시 NLP 처리
+#         processed = process_emotion_text(emotion_data.free_text)
+#         emotion = processed['final_emotion']
+#         score = processed['emotion_score']
+#         keywords = ",".join(processed['keywords'])
+#     else:  # 선택 감정
+#         emotion = emotion_data.emotion
+#         score = None
+#         keywords = None
+
+#     return crud.create_emotion(
+#         db,
+#         uuid.UUID(emotion_data.user_id),
+#         emotion,
+#         score,
+#         keywords
+#     )
 @app.post("/emotions/")
 def add_emotion(emotion_data: EmotionCreate, db: Session = Depends(get_db)):
-    if emotion_data.free_text:
-        # 자유 감정 텍스트 입력 시 NLP 처리
-        processed = process_emotion_text(emotion_data.free_text)
-        emotion = processed['final_emotion']
-        score = processed['emotion_score']
-        keywords = ",".join(processed['keywords'])
-    else:
-        # 선택 감정만 입력된 경우
-        emotion = emotion_data.emotion
-        score = None
-        keywords = None
+    try:
+        if emotion_data.free_text:
+            processed = process_emotion_text(emotion_data.free_text)
+            emotion = processed['final_emotion']
+            score = processed['emotion_score']
+            keywords = ",".join(processed['keywords'])
+        else:
+            emotion = emotion_data.emotion
+            score = None
+            keywords = None
 
-    return crud.create_emotion(db, uuid.UUID(emotion_data.user_id), emotion, score, keywords)
+        return crud.create_emotion(db, uuid.UUID(emotion_data.user_id), emotion, score, keywords)
+
+    except Exception as e:
+        print(f"ERROR in add_emotion: {e}")   # 서버 콘솔 로그 확인용
+        raise e
+
+    
 
 # 활동 유형 추가
 @app.post("/activity-types/")
@@ -86,4 +114,16 @@ def add_flow_curve(flow_curve: FlowCurveCreate, db: Session = Depends(get_db)):
         uuid.UUID(flow_curve.user_id),
         flow_curve.time_spent,
         flow_curve.satisfaction
+    )
+
+# 에러 핸들러
+@app.exception_handler(Exception) # 파이썬에서 모든 에러(에외)는 Exception을 상속받음
+async def generic_exception_handler(request: Request, exc: Exception):
+    print("=" * 50)
+    print(f"Unhandled Exception: {repr(exc)}") # 에러 객체의 타입과 내용을 상세히 나타냄
+    traceback.print_exc()  # 에러 발생한 위치를 나타냄
+    print("=" * 50)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error - 로그를 확인하세요."},
     )

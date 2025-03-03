@@ -35,7 +35,7 @@ res = requests.post(f"{base_url}/emotions/", json={
 check_response(res)
 
 # 4. 감정 추가 (직접 입력 감정) - NLP 전처리 테스트용
-res = requests.post(f"{base_url}/emotions/free-text", json={
+res = requests.post(f"{base_url}/emotions/", json={
     "user_id": user_id,
     "free_text": "요즘 기분이 뭔가 우울하고 복잡해"
 })
